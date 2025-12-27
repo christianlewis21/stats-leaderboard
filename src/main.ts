@@ -21,6 +21,6 @@ function findLoginPath() {
     MenuManager.GetActiveMenu() === MainMenuType.GAME
     && Input.IsActionTriggered(ButtonAction.BOMB, ControllerIndex.KEYBOARD)
   ) {
-    Isaac.DebugString("test")
+    Isaac.DebugString("test");
   }
 }

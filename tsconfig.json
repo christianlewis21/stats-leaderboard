@@ -41,4 +41,8 @@
     // https://isaacscript.github.io/main/custom-stages
     "customStages": [],
   },
+
+  "compilerOptions": {
+    "types": ["isaac-typescript-definitions-repentogon"],
+  },
 }

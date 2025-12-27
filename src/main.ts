@@ -1,19 +1,26 @@
-import { ModCallback } from "isaac-typescript-definitions";
-import { name } from "../package.json";
+import { ButtonAction, ControllerIndex } from "isaac-typescript-definitions";
+import {
+  MainMenuType,
+  ModCallbackRepentogon,
+} from "isaac-typescript-definitions-repentogon";
+import { ISCFeature, upgradeMod } from "isaacscript-common";
 
-// This function is run when your mod first initializes.
 export function main(): void {
-  // Instantiate a new mod object, which grants the ability to add callback functions that
-  // correspond to in-game events.
-  const mod = RegisterMod(name, 1);
+  const modVanilla = RegisterMod("Stats Leaderboard", 1);
+  const ISC_FEATURES = [ISCFeature.RUN_IN_N_FRAMES] as const;
+  const mod = upgradeMod(modVanilla, ISC_FEATURES);
 
-  // Register a callback function that corresponds to when a new player is initialized.
-  mod.AddCallback(ModCallback.POST_PLAYER_INIT, postPlayerInit);
-
-  // Print a message to the "log.txt" file.
-  Isaac.DebugString(`${name} initialized.`);
+  mod.AddCallbackRepentogon(
+    ModCallbackRepentogon.POST_MAIN_MENU_RENDER,
+    findLoginPath,
+  );
 }
 
-function postPlayerInit() {
-  Isaac.DebugString("Callback fired: POST_PLAYER_INIT");
+function findLoginPath() {
+  if (
+    MenuManager.GetActiveMenu() === MainMenuType.GAME
+    && Input.IsActionTriggered(ButtonAction.BOMB, ControllerIndex.KEYBOARD)
+  ) {
+    Isaac.DebugString("test")
+  }
 }

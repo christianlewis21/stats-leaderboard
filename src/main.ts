@@ -1,4 +1,4 @@
-import { ButtonAction, ControllerIndex } from "isaac-typescript-definitions";
+import { ButtonAction, ControllerIndex, NullItemID } from "isaac-typescript-definitions";
 import {
   MainMenuType,
   ModCallbackRepentogon,
@@ -67,27 +67,15 @@ function renderLeaderboard() {
 }
 
 function updateLeaderboard() {
-  const URL = "https://wkjtupwjjqwqldchsfok.supabase.co";
-  const API_KEY = "sb_secret_BUNh3fH97NRuYbB27R7L1w_8rh6Frhm";
-  const NAME = "stats_leaderboard";
 
   const [enabled, requiredSocket] = pcall(require, "socket");
   if (enabled) {
     const socket: Socket | null = requiredSocket as Socket;
-    // uploadStats(socket);
-    // downloadStats(socket);
+    print(socket)
   } else {
     Isaac.DebugString("--luadebug is not enabled.");
   }
 }
-
-// function uploadStats(socket) {
-//   Isaac.DebugString("Uploading Stats");
-// }
-
-// function downloadStats(socket) {
-//   Isaac.DebugString("Downloading Stats");
-// }
 
 function findLoginPath() {
   if (

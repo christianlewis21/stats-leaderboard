@@ -1,8 +1,8 @@
 <AnimatedActor>
-	<Info CreatedBy="Unknown" CreatedOn="7/15/2025 4:28:42 PM" Version="4" Fps="30"/>
+	<Info CreatedBy="Unknown" CreatedOn="12/29/2025 5:23:01 PM" Version="4" Fps="30"/>
 	<Content>
 		<Spritesheets>
-			<Spritesheet Path="SeedWidget.png" Id="0"/>
+			<Spritesheet Path="helper.png" Id="0"/>
 		</Spritesheets>
 		<Layers>
 			<Layer Name="Paper" Id="0" SpritesheetId="0"/>

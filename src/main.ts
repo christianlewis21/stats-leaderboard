@@ -15,14 +15,25 @@ helper.Load("gfx/ui/helper/helper.anm2", true);
 helper.Play("Idle", true);
 
 const loading = Sprite();
-loading.Load("gfx/ui/infobox/infobox.anm2", true);
+loading.Load("gfx/ui/loading/loading.anm2", true);
 loading.Play("Appear", true);
 // End Sprites
 
 // Booleans
 let SHOW_LEADERBOARD = false;
 let GLOBAL_SELECTED = true;
+let FINDING_STEAM_CREDENTIALS = false;
+let STEAM_ID_FOUND = false;
 // End Booleans
+
+// Popen
+const _popen = io.popen;
+
+function SafePopen(cmd: string) {
+  return _popen(cmd);
+}
+// End Popen
+
 export function main(): void {
   const modVanilla = RegisterMod("Stats Leaderboard", 1);
   const ISC_FEATURES = [ISCFeature.RUN_IN_N_FRAMES] as const;
@@ -82,7 +93,7 @@ function renderLeaderboard() {
       }
     }
   } else {
-    Isaac.DebugString("Back to Appear");
+    // Isaac.DebugString("Back to Appear");
     leaderboard.Play("Appear", true);
     SHOW_LEADERBOARD = false;
     GLOBAL_SELECTED = true;
@@ -100,27 +111,75 @@ function renderHelper() {
     helper.Render(Vector(pos.X - 138.5, pos.Y + 1372.5));
   }
 }
-function updateLeaderboard() {
-  const [enabled, requiredSocket] = pcall(require, "socket");
-  if (enabled) {
-    const socket: Socket | null = requiredSocket as Socket;
-    print(socket);
-  } else {
-    Isaac.DebugString("--luadebug is not enabled.");
-  }
-}
 
 function findLoginPath() {
   if (
     MenuManager.GetActiveMenu() === MainMenuType.GAME
     && Input.IsActionTriggered(ButtonAction.BOMB, ControllerIndex.KEYBOARD)
   ) {
+    FINDING_STEAM_CREDENTIALS = true;
+  }
+  if (FINDING_STEAM_CREDENTIALS) {
     loadInfoBox();
-    Isaac.DebugString("test");
-    updateLeaderboard();
+    findSteamID();
+    FINDING_STEAM_CREDENTIALS = false;
+  } else {
+    loading.Play("Appear", true);
   }
 }
 
 function loadInfoBox() {
-  Isaac.DebugString("Loading InfoBox");
+  Isaac.DebugString("Loading...");
+  if (!loading.IsFinished("Disappear")) {
+    loading.Update();
+    loading.Render(Vector(0, 0));
+  }
+  if (loading.IsFinished("Appear")) {
+    loading.Play("Idle", true);
+  }
+  if (STEAM_ID_FOUND) {
+    loading.Play("Disappear", true);
+    STEAM_ID_FOUND = false;
+  }
+}
+
+function findSteamID() {
+  const [cmd] = SafePopen(
+    // eslint-disable-next-line unicorn/prefer-string-raw
+    "reg query HKCU\\Software\\Valve\\Steam /v SteamPath",
+  );
+  if (!cmd) {
+    Isaac.DebugString("SafePopen failed");
+    return;
+  }
+  let path = String(cmd.read("a"));
+
+  path = path
+    // eslint-disable-next-line unicorn/prefer-string-raw
+    .replace("HKEY_CURRENT_USER\\Software\\Valve\\Steam", "")
+    .replace("SteamPath", "")
+    .replace("REG_SZ", "")
+    .replace(" ", "")
+    .replaceAll("/", "\\")
+    .trim();
+  cmd.close();
+  // eslint-disable-next-line unicorn/prefer-string-raw
+  path += "\\config\\loginusers.vdf";
+
+  const [file, err, errCode] = io.open(path, "r");
+  if (!file) {
+    Isaac.DebugString(`Failed to open file: ${err} (code ${errCode})`);
+    return;
+  }
+  const content = file.read("a");
+  if (content === undefined) {
+    Isaac.DebugString("No content available in loginusers.vdf")
+    return;
+  }
+  file.close();
+
+  let steamID: string;
+  let steamName: string;
+
+  
 }

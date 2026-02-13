@@ -26,14 +26,6 @@ let FINDING_STEAM_CREDENTIALS = false;
 let STEAM_ID_FOUND = false;
 // End Booleans
 
-// Popen
-const _popen = io.popen;
-
-function SafePopen(cmd: string) {
-  return _popen(cmd);
-}
-// End Popen
-
 export function main(): void {
   const modVanilla = RegisterMod("Stats Leaderboard", 1);
   const ISC_FEATURES = [ISCFeature.RUN_IN_N_FRAMES] as const;
@@ -144,25 +136,23 @@ function loadInfoBox() {
 }
 
 function findSteamID() {
-  const [cmd] = SafePopen(
+  const [cmd] = io.popen(
     // eslint-disable-next-line unicorn/prefer-string-raw
-    "reg query HKCU\\Software\\Valve\\Steam /v SteamPath",
+    'cmd /c "C:\\Windows\\System32\\reg.exe query HKCU\\Software\\Valve\\Steam /v SteamPath" 2>&1',
   );
   if (!cmd) {
-    Isaac.DebugString("SafePopen failed");
+    Isaac.DebugString("Popen failed");
     return;
   }
   let path = String(cmd.read("a"));
-
+  cmd.close();
   path = path
     // eslint-disable-next-line unicorn/prefer-string-raw
     .replace("HKEY_CURRENT_USER\\Software\\Valve\\Steam", "")
     .replace("SteamPath", "")
     .replace("REG_SZ", "")
-    .replace(" ", "")
     .replaceAll("/", "\\")
     .trim();
-  cmd.close();
   // eslint-disable-next-line unicorn/prefer-string-raw
   path += "\\config\\loginusers.vdf";
 
@@ -173,13 +163,35 @@ function findSteamID() {
   }
   const content = file.read("a");
   if (content === undefined) {
-    Isaac.DebugString("No content available in loginusers.vdf")
+    Isaac.DebugString("No content available in loginusers.vdf");
     return;
   }
+  Isaac.DebugString(content);
   file.close();
 
-  let steamID: string;
-  let steamName: string;
+  let steamID = "";
+  let steamName = "";
 
-  
+  for (const line of content.split("\n")) {
+    if (line.toLowerCase().includes("personaname")) {
+      const name = line.split('"')[3];
+      if (name === undefined) {
+        Isaac.DebugString("Failed to find Steam Name")
+        return;
+      }
+      steamName = name;
+    }
+    if (steamID !== "" && steamName !== "") {
+      break;
+    }
+    if (line.includes("7656119") && !line.toLowerCase().includes("accountname")) {
+      const id = line.split('"')[1];
+      if (id === undefined) {
+        Isaac.DebugString("Failed to find Steam ID");
+        return;
+      }
+      steamID = id;
+    }
+  }
+  Isaac.DebugString(`Found Steam Name and Id: ${(steamID)}, ${(steamName)}`);
 }

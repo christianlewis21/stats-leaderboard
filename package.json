@@ -27,6 +27,7 @@
   "devDependencies": {
     "isaacscript": "6.0.1",
     "isaacscript-lint": "7.3.2",
+    "tsx": "^4.21.0",
     "typescript": "5.9.3",
     "typescript-to-lua": "1.33.0"
   }

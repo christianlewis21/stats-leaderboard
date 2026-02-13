@@ -176,7 +176,7 @@ function findSteamID() {
     if (line.toLowerCase().includes("personaname")) {
       const name = line.split('"')[3];
       if (name === undefined) {
-        Isaac.DebugString("Failed to find Steam Name")
+        Isaac.DebugString("Failed to find Steam Name");
         return;
       }
       steamName = name;
@@ -184,7 +184,10 @@ function findSteamID() {
     if (steamID !== "" && steamName !== "") {
       break;
     }
-    if (line.includes("7656119") && !line.toLowerCase().includes("accountname")) {
+    if (
+      line.includes("7656119")
+      && !line.toLowerCase().includes("accountname")
+    ) {
       const id = line.split('"')[1];
       if (id === undefined) {
         Isaac.DebugString("Failed to find Steam ID");
@@ -193,5 +196,5 @@ function findSteamID() {
       steamID = id;
     }
   }
-  Isaac.DebugString(`Found Steam Name and Id: ${(steamID)}, ${(steamName)}`);
+  Isaac.DebugString(`Found Steam Name and Id: ${steamID}, ${steamName}`);
 }

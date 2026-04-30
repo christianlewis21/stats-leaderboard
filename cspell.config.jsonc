@@ -29,5 +29,5 @@
     "mod/content/rooms/**",
     "mod/resources/rooms/**",
   ],
-  "words": ["popen", "HKCU", "loginusers", "personaname", "accountname"],
+  "words": ["popen", "HKCU", "loginusers", "personaname", "accountname", "leaderboardmenu"],
 }

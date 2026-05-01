@@ -12,9 +12,19 @@ import {
 } from "isaacscript-common";
 
 const modVanilla = RegisterMod("Stats Leaderboard", 1);
-const ISC_FEATURES = [ISCFeature.RUN_IN_N_FRAMES] as const;
+const ISC_FEATURES = [
+  ISCFeature.RUN_IN_N_FRAMES,
+  ISCFeature.SAVE_DATA_MANAGER,
+] as const;
 const mod = upgradeMod(modVanilla, ISC_FEATURES);
-
+const v = {
+  persistent: {
+    steamID: "",
+    steamName: "",
+    friendsList: "",
+  },
+};
+mod.saveDataManager("leaderboard", v);
 // Sprites
 const leaderboard = Sprite();
 leaderboard.Load("gfx/ui/leaderboard/leaderboardmenu.anm2", true);
@@ -40,21 +50,7 @@ type LeaderboardTypeValue = (typeof LEADERBOARD_TYPES)[number];
 type UIState = "hidden" | "appearing" | "visible" | "disappearing" | "loading";
 let leaderboardState: UIState = "hidden";
 let CURRENT_LEADERBOARD: LeaderboardTypeValue = LeaderboardType.GLOBAL;
-// End Leaderboard State
-
-// Booleans
 let SHOW_LEADERBOARD = false;
-// End Booleans
-
-// Fonts
-const font = Font();
-font.Load("font/teammeatfont12.fnt");
-const title = Font();
-title.Load("font/teammeatfont16.fnt");
-// End Fonts
-
-let previousMenu: MainMenuType | undefined;
-let pos: Vector = Vector(0, 0);
 type PlayerEntry = Record<string, string | number>;
 let globalEntries: PlayerEntry[] = [];
 let friendEntries: PlayerEntry[] = [];
@@ -63,18 +59,32 @@ let currentStatIndex = 0;
 let currentPage = 0;
 const PAGE_SIZE = 10;
 let totalPages = 0;
-let activeTCP: SocketClient | undefined;
-let downloadLine:
-  | LuaMultiReturn<[data: string | undefined, errMsg: string]>
-  | undefined;
-let length = 0;
-let totalReceived = 0;
-let entries = "";
+// End Leaderboard State
+
+// Fonts
+const font = Font();
+font.Load("font/teammeatfont12.fnt");
+const title = Font();
+title.Load("font/teammeatfont16.fnt");
+// End Fonts
+
+// Socket
 let socket: Socket | null = null;
 const [ok, requiredSocket] = pcall(require, "socket");
 if (ok) {
   socket = requiredSocket as Socket;
 }
+let activeTCP: SocketClient | undefined;
+let downloadLine:
+  | LuaMultiReturn<[data: string | undefined, errMsg: string]>
+  | undefined;
+let receivedLength = 0;
+let totalReceived = 0;
+let entries = "";
+// End Socket
+
+let previousMenu: MainMenuType | undefined;
+let pos: Vector = Vector(0, 0);
 
 const Stats = [
   ["mom_kills", EventCounter.MOM_KILLS],
@@ -130,6 +140,7 @@ const Stats = [
 ] as const;
 
 export function main(): void {
+  mod.saveDataManagerLoad();
   mod.AddCallbackRepentogon(
     ModCallbackRepentogon.POST_MAIN_MENU_RENDER,
     render,
@@ -148,15 +159,7 @@ function render() {
       uploadData();
     }
   } else {
-    leaderboard.Play("Appear", true);
-    leaderboardState = "hidden";
-    SHOW_LEADERBOARD = false;
-    CURRENT_LEADERBOARD = LeaderboardType.GLOBAL;
-    globalEntries = [];
-    friendEntries = [];
-    meEntries = [];
-    currentStatIndex = 0;
-    currentPage = 0;
+    resetDefault();
   }
   if (
     currentMenu === MainMenuType.GAME
@@ -186,7 +189,7 @@ function renderLeaderboard() {
   if (leaderboardState === "appearing" && leaderboard.IsFinished("Appear")) {
     leaderboardState = "loading";
     leaderboard.Play("Loading", true);
-    downloadData();
+    requestDownload();
   }
 
   if (
@@ -197,7 +200,7 @@ function renderLeaderboard() {
   }
 
   if (leaderboardState === "loading") {
-    parseData();
+    downloadData();
   }
 
   if (leaderboardState === "visible") {
@@ -249,74 +252,62 @@ function leaderboardInput() {
 
 function buildFriendEntries(statKey: string) {
   friendEntries = [];
-  const data = mod.LoadData();
-  const friendsList = (data.split(":")[3] ?? "")
-    .replaceAll("[", "")
-    .replaceAll("]", "")
-    .split(",")
-    .map((id) => id.replaceAll('"', "").trim());
-  const steamID = data.split(":")[0];
-  if (steamID === undefined) {
-    Isaac.DebugString("Failed to load user's Steam ID for friend leaderboard");
-    return;
-  }
-  friendsList.push(steamID);
-  for (const entry of friendsList) {
-    const match = globalEntries.find((e) => e["steam_id"] === entry);
-    if (match) {
-      friendEntries.push(match);
-    }
-  }
-  const sorted = [...friendEntries].toSorted((a, b) => {
-    const aVal = typeof a[statKey] === "number" ? a[statKey] : 0;
-    const bVal = typeof b[statKey] === "number" ? b[statKey] : 0;
-    return bVal - aVal;
-  });
-  friendEntries = sorted;
+
+  const { steamID, friendsList } = v.persistent;
+  const decoded = jsonDecode(friendsList);
+  const parsedFriends =
+    decoded !== undefined && Array.isArray(decoded)
+      ? (decoded as string[])
+      : [];
+  parsedFriends.push(steamID);
+
+  const friendsSet = new Set(parsedFriends);
+
+  const matches = globalEntries.filter((entry) =>
+    friendsSet.has(entry["steam_id"] as string),
+  );
+
+  friendEntries = sortLeaderboard(matches, statKey) as PlayerEntry[];
 }
 
 let meStartIndex = 0;
 function buildMeEntries(statKey: string) {
-  const sorted = [...globalEntries].toSorted((a, b) => {
-    const aVal = typeof a[statKey] === "number" ? a[statKey] : 0;
-    const bVal = typeof b[statKey] === "number" ? b[statKey] : 0;
-    return bVal - aVal;
-  });
+  const sorted = sortLeaderboard(globalEntries, statKey);
+  const { steamID } = v.persistent;
 
-  const steamID = mod.LoadData().split(":")[0];
   const playerIndex = sorted.findIndex(
     (entry) => entry["steam_id"] === steamID,
   );
 
   if (playerIndex === -1) {
     meEntries = [];
+    meStartIndex = 0;
     return;
   }
 
-  let start = playerIndex - 4;
-
-  if (start < 0) {
-    start = 0;
-  }
-
-  if (start + PAGE_SIZE > sorted.length) {
-    start = Math.max(0, sorted.length - PAGE_SIZE);
-  }
+  const start = Math.max(
+    0,
+    Math.min(playerIndex - 4, sorted.length - PAGE_SIZE),
+  );
 
   meEntries = sorted.slice(start, start + PAGE_SIZE);
-  meStartIndex = start === 0 ? 1 : start;
+  meStartIndex = start === 0 ? 1 : start + 1;
 }
 
 function displayEntries() {
-  let leaderboardEntries: PlayerEntry[] = [];
   const [statKey] = Stats[currentStatIndex] ?? [];
   if (statKey === undefined) {
     return;
   }
+
+  let leaderboardEntries: PlayerEntry[] = [];
   switch (CURRENT_LEADERBOARD) {
     case LeaderboardType.GLOBAL: {
       // Global Leaderboard
-      leaderboardEntries = globalEntries;
+      leaderboardEntries = sortLeaderboard(
+        globalEntries,
+        statKey,
+      ) as PlayerEntry[];
       break;
     }
 
@@ -334,61 +325,64 @@ function displayEntries() {
       break;
     }
   }
-  const leaderboardName = statKey.replaceAll("_", " ");
-  const color = KColor(0.216, 0.168, 0.176, 1);
+  totalPages = Math.ceil(leaderboardEntries.length / PAGE_SIZE);
+
+  const defaultColor = KColor(0.216, 0.168, 0.176, 1);
+  const userColor = KColor(0.3, 0, 0, 1);
   const baseX = pos.X - 468.5;
   const baseY = pos.Y + 1342.5;
 
+  const leaderboardName = statKey.replaceAll("_", " ");
   const titleX = baseX + 150;
-  let titleYoffset = 41;
-  if (leaderboardName.split(" ").length > 2) {
-    titleYoffset = 35;
-  }
-  const titleY = baseY + titleYoffset;
+  const titleY = baseY + (leaderboardName.split(" ").length > 2 ? 35 : 41);
+
   const lines = splitTitle(leaderboardName);
-
   for (const [i, line] of lines.entries()) {
-    title.DrawString(line, titleX, titleY + i * 10, color, 169, true);
+    title.DrawString(line, titleX, titleY + i * 10, defaultColor, 169, true);
   }
-
-  const sorted = [...leaderboardEntries].toSorted((a, b) => {
-    const aVal = typeof a[statKey] === "number" ? a[statKey] : 0;
-    const bVal = typeof b[statKey] === "number" ? b[statKey] : 0;
-    return bVal - aVal;
-  });
-
-  totalPages = Math.ceil(sorted.length / PAGE_SIZE);
 
   const startIndex = currentPage * PAGE_SIZE;
-  const endIndex = Math.min(startIndex + PAGE_SIZE, sorted.length);
-
+  const endIndex = Math.min(startIndex + PAGE_SIZE, leaderboardEntries.length);
   const entryX = baseX + 110;
   const entryY = baseY + 77;
   const statColumnX = baseX + 356;
 
+  const { steamID } = v.persistent;
+
   for (let i = startIndex; i < endIndex; i++) {
-    const entry = sorted[i];
+    const entry = leaderboardEntries[i];
     if (entry === undefined) {
       continue;
     }
 
     const rank =
-      CURRENT_LEADERBOARD === LeaderboardType.ME ? meStartIndex + i : i + 1;
-    const text = `${rank}. ${entry["steam_name"] as string}`;
+      CURRENT_LEADERBOARD === LeaderboardType.ME
+        ? meStartIndex + (i - startIndex)
+        : i + 1;
     const yPos = entryY + (i - startIndex) * 14;
-    font.DrawString(text, entryX, yPos, color, 0, false);
 
-    const statStr = tostring(entry[statKey]);
-    const statWidth = font.GetStringWidth(statStr);
-    font.DrawString(statStr, statColumnX - statWidth, yPos, color, 0, false);
+    const entryColor = steamID === entry["steam_id"] ? userColor : defaultColor;
+
+    const nameText = `${rank}. ${entry["steam_name"] as string}`;
+    font.DrawString(nameText, entryX, yPos, entryColor, 0, false);
+
+    const statValue = tostring(entry[statKey]);
+    const statWidth = font.GetStringWidth(statValue);
+    font.DrawString(
+      statValue,
+      statColumnX - statWidth,
+      yPos,
+      entryColor,
+      0,
+      false,
+    );
   }
 }
 
 function splitTitle(leaderboard_title: string): readonly string[] {
   const words = leaderboard_title.split(" ");
-
   if (words.length <= 2) {
-    return [leaderboard_title]; // no wrap needed
+    return [leaderboard_title];
   }
 
   return [words.slice(0, 2).join(" "), words.slice(2).join(" ")];
@@ -489,11 +483,13 @@ function findSteamID() {
   tcp.close();
   const lines = response.split("\n");
   const friendsList = lines.at(-1);
-  mod.SaveData(`${steamID}:${steamName}:true:${friendsList}`);
+  v.persistent.steamID = steamID;
+  v.persistent.steamName = steamName;
+  v.persistent.friendsList = friendsList ?? "";
 }
 
 function uploadData() {
-  if (!mod.HasData()) {
+  if (v.persistent.steamID === "") {
     findSteamID();
   }
   const gameData = Isaac.GetPersistentGameData();
@@ -504,8 +500,8 @@ function uploadData() {
         ? gameData.GetEventCounter(counter)
         : 0;
   }
-  const steamID = mod.LoadData().split(":")[0];
-  const steamName = mod.LoadData().split(":")[1];
+  const { steamID } = v.persistent;
+  const { steamName } = v.persistent;
 
   const payload = {
     steam_id: steamID,
@@ -540,7 +536,7 @@ function uploadData() {
   tcp.close();
 }
 
-function downloadData() {
+function requestDownload() {
   if (socket === null) {
     Isaac.DebugString("Socket not available");
     return;
@@ -570,12 +566,12 @@ function downloadData() {
   activeTCP = tcp;
 }
 
-function parseData() {
+function downloadData() {
   if (activeTCP === undefined) {
     Isaac.DebugString("No active TCP connection for leaderboard data");
     return;
   }
-  if (length === 0) {
+  if (receivedLength === 0) {
     downloadLine = activeTCP.receive("*l");
 
     if (
@@ -584,14 +580,14 @@ function parseData() {
     ) {
       const int = downloadLine[0].split("Content-Length:")[1];
       if (int !== undefined) {
-        length = Number.parseInt(int.trim(), 10);
+        receivedLength = Number.parseInt(int.trim(), 10);
       }
     }
   } else if (downloadLine === undefined || downloadLine[0] !== "") {
     downloadLine = activeTCP.receive("*l");
   } else {
     const CHUNK_SIZE = 65_536;
-    const remaining = length - totalReceived;
+    const remaining = receivedLength - totalReceived;
     const toReceive = Math.min(CHUNK_SIZE, remaining);
     const data = activeTCP.receive(toReceive);
 
@@ -599,7 +595,7 @@ function parseData() {
       entries += data[0];
       totalReceived += data[0].length;
 
-      if (totalReceived >= length) {
+      if (totalReceived >= receivedLength) {
         const parsed = jsonDecode(entries);
         if (parsed !== undefined && Array.isArray(parsed)) {
           globalEntries = parsed as PlayerEntry[];
@@ -613,10 +609,37 @@ function parseData() {
         activeTCP.close();
         activeTCP = undefined;
         downloadLine = undefined;
-        length = 0;
+        receivedLength = 0;
         entries = "";
         totalReceived = 0;
       }
     }
   }
+}
+
+function resetDefault() {
+  leaderboard.Play("Appear", true);
+  leaderboardState = "hidden";
+  SHOW_LEADERBOARD = false;
+  CURRENT_LEADERBOARD = LeaderboardType.GLOBAL;
+  globalEntries = [];
+  friendEntries = [];
+  meEntries = [];
+  currentStatIndex = 0;
+  currentPage = 0;
+}
+
+function sortLeaderboard(
+  leaderboardEntries: readonly PlayerEntry[],
+  stat: string,
+) {
+  const sorted: readonly PlayerEntry[] = [...leaderboardEntries].toSorted(
+    (a, b) => {
+      const aVal = typeof a[stat] === "number" ? a[stat] : 0;
+      const bVal = typeof b[stat] === "number" ? b[stat] : 0;
+      return bVal - aVal;
+    },
+  );
+
+  return sorted;
 }

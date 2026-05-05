@@ -9,6 +9,7 @@
 [h1]IMPORTANT: THIS MOD HAS EXTRA DEPENDENCIES[/h1]
 1. YOU MUST BE USING [url=https://repentogon.com/]REPENTOGON[/url]
 2. YOU MUST HAVE --luadebug ENABLED IN REPENTOGON (advanced mod options -> enable luadebug)
+3. IF YOU WANT TO SEE YOUR FRIENDS LIST, YOU MUST HAVE A PUBLIC STEAM PROFILE AND PUBLIC FRIENDS LIST
 
 --luadebug is a dangerous option and can enable mods to access your entire computer. Please be careful downloading mods with this option enabled. This option is required so that the mod is able to access the leaderboard and find your steam id and name. Without this option enabled, this mod will not work correctly.
 

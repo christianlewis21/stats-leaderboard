@@ -528,6 +528,12 @@ function parseVDF(path: string | undefined) {
       }
       user.name = name;
     }
+    if (line.toLowerCase().includes("mostrecent")) {
+      const mostrecent = line.split('"')[3];
+      if (mostrecent === "1") {
+        break;
+      }
+    }
   }
   return user;
 }

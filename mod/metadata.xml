@@ -1,15 +1,16 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <metadata>
-  <name>Stats Leaderboard</name>
-  <directory>stats-leaderboard</directory>
-  <id>0</id>
-  <description>
+    <name>Stats Leaderboard</name>
+    <directory>stats-leaderboard</directory>
+    <id>3720196936</id>
+    <description>
     Have you ever wanted to compare your stats to your friends? How about see where you rank against other people who play Isaac? This leaderboard shows all of that.
 
 [h1]IMPORTANT: THIS MOD HAS EXTRA DEPENDENCIES[/h1]
 1. YOU MUST BE USING [url=https://repentogon.com/]REPENTOGON[/url]
-2. YOU MUST HAVE --luadebug ENABLED IN REPENTOGON (advanced mod options -> enable luadebug)
+2. YOU MUST HAVE --luadebug ENABLED IN REPENTOGON (advanced mod options -&gt; enable luadebug)
 3. IF YOU WANT TO SEE YOUR FRIENDS LIST, YOU MUST HAVE A PUBLIC STEAM PROFILE AND PUBLIC FRIENDS LIST
+4. YOU NEED AN INTERNET CONNECTION
 
 --luadebug is a dangerous option and can enable mods to access your entire computer. Please be careful downloading mods with this option enabled. This option is required so that the mod is able to access the leaderboard and find your steam id and name. Without this option enabled, this mod will not work correctly.
 
@@ -30,9 +31,9 @@ Controller: SHARE (the tiny little button on the left) to open/close leaderboard
 
 This mod is made with [url=https://isaacscript.github.io/]Isaacscript[/url]
   </description>
-  <version>1.0</version>
-  <visibility>Public</visibility>
-  <tag id="Lua" />
-  <tag id="Tweaks" />
-  <tag id="Graphics" />
+    <version>1.1</version>
+    <visibility>Public</visibility>
+    <tag id="Lua"/>
+    <tag id="Tweaks"/>
+    <tag id="Graphics"/>
 </metadata>

@@ -1,9 +1,34 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<?xml-model href="https://wofsauge.github.io/isaac-xml-validator/xsd/metadata.xsd" ?>
 <metadata>
-  <name>stats-leaderboard</name>
+  <name>Stats Leaderboard</name>
   <directory>stats-leaderboard</directory>
-  <description>stats-leaderboard is a currently a work in progress.</description>
+  <id>0</id>
+  <description>
+    Have you ever wanted to compare your stats to your friends? How about see where you rank against other people who play Isaac? This leaderboard shows all of that.
+
+[h1]IMPORTANT: THIS MOD HAS EXTRA DEPENDENCIES[/h1]
+1. YOU MUST BE USING [url=https://repentogon.com/]REPENTOGON[/url]
+2. YOU MUST HAVE --luadebug ENABLED IN REPENTOGON (advanced mod options -> enable luadebug)
+
+--luadebug is a dangerous option and can enable mods to access your entire computer. Please be careful downloading mods with this option enabled. This option is required so that the mod is able to access the leaderboard and find your steam id and name. Without this option enabled, this mod will not work correctly.
+
+All code is available [url=https://github.com/christianlewis21/stats-leaderboard]HERE[/url]
+
+[h1]OTHER IMPORTANT INFORMATION[/h1]
+On the first time entering the stats menu on every save, the mod will automatically find your steam id, name, and friends list. This will freeze the game for a bit and probably open up command prompt. Just let it do its thing. After that, if you want to update your steam name on the leaderboard, hitting E (keyboard) or SHARE (the tiny little left button on controller) on the main menu (where new game, continue, settings, mod menu are) will do this process again. Once again it will freeze for a bit and then be done.
+
+[h2]Features[/h2]
+Global Leaderboard: Displays everyone who downloads and uploads their game data.
+Friends Leaderboard: Displays only your steam friends
+Me Leaderboard: Displays your place on the global leaderboard.
+
+[h2]Navigation[/h2]
+Keyboard: TAB to open/close leaderboard. E to cycle through leaderboards. Arrow Keys (UP/DOWN/LEFT/RIGHT) to cycle through leaderboard placement/stat.
+Controller: SHARE (the tiny little button on the left) to open/close leaderboard. LB to cycle through leaderboards. Joystick or D-pad to cycle through leaderboard placement/stat.
+  </description>
   <version>1.0</version>
-  <visibility />
+  <visibility>Public</visibility>
+  <tag id="Lua" />
+  <tag id="Tweaks" />
+  <tag id="Graphics" />
 </metadata>

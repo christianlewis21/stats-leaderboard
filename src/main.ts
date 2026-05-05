@@ -81,10 +81,18 @@ let downloadLine:
 let receivedLength = 0;
 let totalReceived = 0;
 let entries = "";
+const SERVER_HOST = "100.30.25.239";
+const SERVER_PORT = 80;
 // End Socket
 
 let previousMenu: MainMenuType | undefined;
 let pos: Vector = Vector(0, 0);
+const allIndices = [
+  ControllerIndex.KEYBOARD,
+  ControllerIndex.CONTROLLER_1,
+  ControllerIndex.CONTROLLER_2,
+  ControllerIndex.CONTROLLER_3,
+];
 
 const Stats = [
   ["mom_kills", EventCounter.MOM_KILLS],
@@ -150,6 +158,7 @@ export function main(): void {
 function render() {
   const currentMenu = MenuManager.GetActiveMenu();
   pos = MenuManager.GetViewPosition();
+  updateLastUsedInputDevice();
   if (currentMenu === MainMenuType.STATS) {
     if (!StatsMenu.IsSecretsMenuVisible()) {
       renderHelper();
@@ -161,9 +170,12 @@ function render() {
   } else {
     resetDefault();
   }
+
+  const isAnyActionTriggered = (action: ButtonAction): boolean =>
+    allIndices.some((idx) => Input.IsActionTriggered(action, idx));
   if (
     currentMenu === MainMenuType.GAME
-    && Input.IsActionTriggered(ButtonAction.BOMB, ControllerIndex.KEYBOARD)
+    && isAnyActionTriggered(ButtonAction.BOMB)
   ) {
     findSteamID();
   }
@@ -208,11 +220,16 @@ function renderLeaderboard() {
   }
 }
 
+let lastUsedInputDevice: "keyboard" | "controller" = "keyboard";
 function leaderboardInput() {
-  if (Input.IsActionTriggered(ButtonAction.MAP, ControllerIndex.KEYBOARD)) {
+  const isAnyActionTriggered = (action: ButtonAction): boolean =>
+    allIndices.some((idx) => Input.IsActionTriggered(action, idx));
+
+  if (isAnyActionTriggered(ButtonAction.MAP)) {
     SHOW_LEADERBOARD = !SHOW_LEADERBOARD;
   }
-  if (Input.IsActionTriggered(ButtonAction.BOMB, ControllerIndex.KEYBOARD)) {
+
+  if (isAnyActionTriggered(ButtonAction.BOMB)) {
     const index = LEADERBOARD_TYPES.indexOf(CURRENT_LEADERBOARD);
 
     CURRENT_LEADERBOARD =
@@ -221,23 +238,12 @@ function leaderboardInput() {
     leaderboard.SetFrame("Idle", CURRENT_LEADERBOARD);
     currentPage = 0;
   }
+
   if (leaderboardState === "visible") {
-    const left = Input.IsActionTriggered(
-      ButtonAction.MENU_LEFT,
-      ControllerIndex.KEYBOARD,
-    );
-    const right = Input.IsActionTriggered(
-      ButtonAction.MENU_RIGHT,
-      ControllerIndex.KEYBOARD,
-    );
-    const up = Input.IsActionTriggered(
-      ButtonAction.MENU_UP,
-      ControllerIndex.KEYBOARD,
-    );
-    const down = Input.IsActionTriggered(
-      ButtonAction.MENU_DOWN,
-      ControllerIndex.KEYBOARD,
-    );
+    const left = isAnyActionTriggered(ButtonAction.MENU_LEFT);
+    const right = isAnyActionTriggered(ButtonAction.MENU_RIGHT);
+    const up = isAnyActionTriggered(ButtonAction.MENU_UP);
+    const down = isAnyActionTriggered(ButtonAction.MENU_DOWN);
 
     if (left || right) {
       currentStatIndex =
@@ -246,6 +252,43 @@ function leaderboardInput() {
     }
     if (up || down) {
       currentPage = (currentPage + (down ? 1 : -1) + totalPages) % totalPages;
+    }
+  }
+}
+
+function updateLastUsedInputDevice() {
+  const controllerIndices: ControllerIndex[] = [
+    ControllerIndex.CONTROLLER_1,
+    ControllerIndex.CONTROLLER_2,
+    ControllerIndex.CONTROLLER_3,
+  ];
+
+  if (
+    Input.IsActionPressed(ButtonAction.MENU_UP, ControllerIndex.KEYBOARD)
+    || Input.IsActionPressed(ButtonAction.MENU_DOWN, ControllerIndex.KEYBOARD)
+    || Input.IsActionPressed(ButtonAction.MENU_LEFT, ControllerIndex.KEYBOARD)
+    || Input.IsActionPressed(ButtonAction.MENU_RIGHT, ControllerIndex.KEYBOARD)
+    || Input.IsActionPressed(ButtonAction.MAP, ControllerIndex.KEYBOARD)
+    || Input.IsActionPressed(
+      ButtonAction.MENU_CONFIRM,
+      ControllerIndex.KEYBOARD,
+    )
+  ) {
+    lastUsedInputDevice = "keyboard";
+    return;
+  }
+
+  for (const idx of controllerIndices) {
+    if (
+      Input.IsActionPressed(ButtonAction.MENU_UP, idx)
+      || Input.IsActionPressed(ButtonAction.MENU_DOWN, idx)
+      || Input.IsActionPressed(ButtonAction.MENU_LEFT, idx)
+      || Input.IsActionPressed(ButtonAction.MENU_RIGHT, idx)
+      || Input.IsActionPressed(ButtonAction.MAP, idx)
+      || Input.IsActionPressed(ButtonAction.MENU_CONFIRM, idx)
+    ) {
+      lastUsedInputDevice = "controller";
+      return;
     }
   }
 }
@@ -390,68 +433,21 @@ function splitTitle(leaderboard_title: string): readonly string[] {
 
 function renderHelper() {
   helper.Update();
+
+  if (lastUsedInputDevice === "controller") {
+    helper.SetFrame("Idle", 1);
+  } else {
+    helper.SetFrame("Idle", 0);
+  }
+
   helper.Render(Vector(pos.X - 138.5, pos.Y + 1372.5));
 }
 
 function findSteamID() {
-  const [cmd] = io.popen(
-    // eslint-disable-next-line unicorn/prefer-string-raw
-    'cmd /c "C:\\Windows\\System32\\reg.exe query HKCU\\Software\\Valve\\Steam /v SteamPath" 2>&1',
-  );
-  if (!cmd) {
-    Isaac.DebugString("popen failed");
+  const user = parseVDF(getSteamLoginUsersPath());
+  if (user === undefined) {
+    Isaac.DebugString("Failed to find most recent user");
     return;
-  }
-  let path = String(cmd.read("a"));
-  cmd.close();
-  path = path
-    // eslint-disable-next-line unicorn/prefer-string-raw
-    .replace("HKEY_CURRENT_USER\\Software\\Valve\\Steam", "")
-    .replace("SteamPath", "")
-    .replace("REG_SZ", "")
-    .replaceAll("/", "\\")
-    .trim();
-  // eslint-disable-next-line unicorn/prefer-string-raw
-  path += "\\config\\loginusers.vdf";
-
-  const [file, err, errCode] = io.open(path, "r");
-  if (!file) {
-    Isaac.DebugString(`Failed to open file: ${err} (code ${errCode})`);
-    return;
-  }
-  const content = file.read("a");
-  if (content === undefined) {
-    Isaac.DebugString("No content available in loginusers.vdf");
-    return;
-  }
-  file.close();
-
-  let steamID = "";
-  let steamName = "";
-
-  for (const line of content.split("\n")) {
-    if (line.toLowerCase().includes("personaname")) {
-      const name = line.split('"')[3];
-      if (name === undefined) {
-        Isaac.DebugString("Failed to find Steam Name");
-        return;
-      }
-      steamName = name;
-    }
-    if (steamID !== "" && steamName !== "") {
-      break;
-    }
-    if (
-      line.includes("7656119")
-      && !line.toLowerCase().includes("accountname")
-    ) {
-      const id = line.split('"')[1];
-      if (id === undefined) {
-        Isaac.DebugString("Failed to find Steam ID");
-        return;
-      }
-      steamID = id;
-    }
   }
   if (socket === null) {
     Isaac.DebugString("Socket not available");
@@ -459,14 +455,14 @@ function findSteamID() {
   }
   const tcp = socket.tcp();
   tcp.settimeout(30);
-  const [connected, friendErr] = tcp.connect("100.30.25.239", 80);
+  const [connected, friendErr] = tcp.connect(SERVER_HOST, SERVER_PORT);
   if (connected !== 1) {
     Isaac.DebugString(`Socket failed to connect: ${friendErr}`);
     return;
   }
   const request =
-    `GET /friends?steam_id=${steamID} HTTP/1.1\r\n`
-    + "Host: 100.30.25.239\r\n"
+    `GET /friends?steam_id=${user.id} HTTP/1.1\r\n`
+    + `Host: ${SERVER_HOST}\r\n`
     + "Content-Type: application/json\r\n\r\n";
   const [sent, sendErr] = tcp.send(request);
   if (sent === undefined) {
@@ -483,9 +479,115 @@ function findSteamID() {
   tcp.close();
   const lines = response.split("\n");
   const friendsList = lines.at(-1);
-  v.persistent.steamID = steamID;
-  v.persistent.steamName = steamName;
+  v.persistent.steamID = user.id;
+  v.persistent.steamName = user.name;
   v.persistent.friendsList = friendsList ?? "";
+  Isaac.DebugString(
+    `Found steamID: ${user.id}, steamName: ${user.name}, and friendsList: ${friendsList}`,
+  );
+}
+
+function parseVDF(path: string | undefined) {
+  const user = { id: "", name: "" };
+  if (path === undefined) {
+    Isaac.DebugString("Could not find loginusers.vdf");
+    return undefined;
+  }
+
+  const [file, err] = io.open(path, "r");
+  if (!file) {
+    Isaac.DebugString(`Failed to open file: ${err}`);
+    return undefined;
+  }
+
+  const content = file.read("a");
+  file.close();
+
+  if (content === undefined) {
+    Isaac.DebugString("No content in loginusers.vdf");
+    return undefined;
+  }
+
+  for (const line of content.split("\n")) {
+    if (
+      line.includes("7656119")
+      && !line.toLowerCase().includes("accountname")
+    ) {
+      const id = line.split('"')[1];
+      if (id === undefined) {
+        Isaac.DebugString("Failed to find Steam ID");
+        return undefined;
+      }
+      user.id = id;
+    }
+    if (line.toLowerCase().includes("personaname")) {
+      const name = line.split('"')[3];
+      if (name === undefined) {
+        Isaac.DebugString("Failed to find Steam Name");
+        return undefined;
+      }
+      user.name = name;
+    }
+  }
+  return user;
+}
+
+function getSteamLoginUsersPath(): string | undefined {
+  const home = os.getenv("HOME");
+  const appData = os.getenv("APPDATA");
+  Isaac.DebugString(`${home} ${appData}`);
+  // Mac
+  if (home !== undefined) {
+    const path = `${home}/Library/Application Support/Steam/config/loginusers.vdf`;
+    const result = io.open(path, "r");
+    const file = result[0];
+    if (file !== undefined) {
+      file.close();
+      return path;
+    }
+  }
+  // Linux
+  if (home !== undefined) {
+    const paths = [
+      `${home}/.steam/steam/config/loginusers.vdf`,
+      `${home}/.local/share/Steam/config/loginusers.vdf`,
+    ];
+
+    for (const path of paths) {
+      const result = io.open(path, "r");
+      const file = result[0];
+      if (file !== undefined) {
+        file.close();
+        return path;
+      }
+    }
+  }
+
+  // Windows
+  if (appData !== undefined) {
+    const [cmd] = io.popen(
+      // eslint-disable-next-line unicorn/prefer-string-raw
+      'cmd /c "C:\\Windows\\System32\\reg.exe query HKCU\\Software\\Valve\\Steam /v SteamPath" 2>&1',
+    );
+    if (!cmd) {
+      Isaac.DebugString("popen failed");
+      return undefined;
+    }
+    let path = String(cmd.read("a"));
+    cmd.close();
+    path = path
+      // eslint-disable-next-line unicorn/prefer-string-raw
+      .replace("HKEY_CURRENT_USER\\Software\\Valve\\Steam", "")
+      .replace("SteamPath", "")
+      .replace("REG_SZ", "")
+      .replaceAll("/", "\\")
+      .trim();
+    // eslint-disable-next-line unicorn/prefer-string-raw
+    path += "\\config\\loginusers.vdf";
+    return path;
+  }
+
+  return undefined;
 }
 
 function uploadData() {
@@ -511,7 +613,7 @@ function uploadData() {
   const json = jsonEncode(payload);
   const request =
     "POST /submit HTTP/1.1\r\n"
-    + "Host: 100.30.25.239\r\n"
+    + `Host: ${SERVER_HOST}\r\n`
     + "Content-Type: application/json\r\n"
     + `Content-Length: ${json.length}\r\n`
     + `\r\n${json}`;
@@ -522,7 +624,7 @@ function uploadData() {
   }
   const tcp = socket.tcp();
   tcp.settimeout(30);
-  const [connected, err] = tcp.connect("100.30.25.239", 80);
+  const [connected, err] = tcp.connect(SERVER_HOST, SERVER_PORT);
   if (connected !== 1) {
     Isaac.DebugString(`Socket failed to connect: ${err}`);
     return;
@@ -536,22 +638,34 @@ function uploadData() {
   tcp.close();
 }
 
+let downloadStartTime = 0;
+const DOWNLOAD_TIMEOUT = 10_000;
 function requestDownload() {
   if (socket === null) {
     Isaac.DebugString("Socket not available");
+    leaderboardState = "hidden";
+    SHOW_LEADERBOARD = false;
     return;
   }
+
+  if (activeTCP !== undefined) {
+    activeTCP.close();
+    activeTCP = undefined;
+  }
+
   const tcp = socket.tcp();
   tcp.settimeout(30);
-  const [connected, err] = tcp.connect("100.30.25.239", 80);
+  const [connected, err] = tcp.connect(SERVER_HOST, SERVER_PORT);
   if (connected !== 1) {
     Isaac.DebugString(`Socket failed to connect: ${err}`);
+    leaderboardState = "hidden";
+    SHOW_LEADERBOARD = false;
     return;
   }
 
   const request =
     "GET /leaderboard HTTP/1.1\r\n"
-    + "Host: 100.30.25.239\r\n"
+    + `Host: ${SERVER_HOST}\r\n`
     + "Connection: close\r\n"
     + "Content-Type: application/json\r\n\r\n";
 
@@ -559,18 +673,33 @@ function requestDownload() {
   if (sent === undefined) {
     Isaac.DebugString(`Failed to send GET: ${sendErr}`);
     tcp.close();
+    leaderboardState = "hidden";
+    SHOW_LEADERBOARD = false;
     return;
   }
 
   tcp.settimeout(0);
   activeTCP = tcp;
+  downloadStartTime = Isaac.GetTime();
 }
 
 function downloadData() {
   if (activeTCP === undefined) {
     Isaac.DebugString("No active TCP connection for leaderboard data");
+    leaderboardState = "hidden";
+    SHOW_LEADERBOARD = false;
     return;
   }
+
+  const currentTime = Isaac.GetTime();
+  if (currentTime - downloadStartTime > DOWNLOAD_TIMEOUT) {
+    Isaac.DebugString("Download timed out");
+    cleanupDownload();
+    leaderboardState = "hidden";
+    SHOW_LEADERBOARD = false;
+    return;
+  }
+
   if (receivedLength === 0) {
     downloadLine = activeTCP.receive("*l");
 
@@ -586,33 +715,32 @@ function downloadData() {
   } else if (downloadLine === undefined || downloadLine[0] !== "") {
     downloadLine = activeTCP.receive("*l");
   } else {
-    const CHUNK_SIZE = 65_536;
+    const CHUNK_SIZE = 65_535;
     const remaining = receivedLength - totalReceived;
+
+    if (remaining <= 0) {
+      const parsed = jsonDecode(entries);
+      if (parsed !== undefined && Array.isArray(parsed)) {
+        globalEntries = parsed as PlayerEntry[];
+        leaderboardState = "visible";
+        leaderboard.Play("Idle", true);
+      } else {
+        Isaac.DebugString("Failed to parse JSON - data may be corrupted");
+        Isaac.DebugString(`First 200 chars: ${entries.slice(0, 200)}`);
+        Isaac.DebugString(`Last 200 chars: ${entries.slice(-200)}`);
+        leaderboardState = "hidden";
+        SHOW_LEADERBOARD = false;
+      }
+      cleanupDownload();
+      return;
+    }
+
     const toReceive = Math.min(CHUNK_SIZE, remaining);
     const data = activeTCP.receive(toReceive);
 
     if (data[0] !== undefined) {
       entries += data[0];
       totalReceived += data[0].length;
-
-      if (totalReceived >= receivedLength) {
-        const parsed = jsonDecode(entries);
-        if (parsed !== undefined && Array.isArray(parsed)) {
-          globalEntries = parsed as PlayerEntry[];
-
-          leaderboardState = "visible";
-          leaderboard.Play("Idle", true);
-        } else {
-          Isaac.DebugString("Failed to parse JSON");
-          leaderboardState = "hidden";
-        }
-        activeTCP.close();
-        activeTCP = undefined;
-        downloadLine = undefined;
-        receivedLength = 0;
-        entries = "";
-        totalReceived = 0;
-      }
     }
   }
 }
@@ -627,6 +755,20 @@ function resetDefault() {
   meEntries = [];
   currentStatIndex = 0;
   currentPage = 0;
+
+  cleanupDownload();
+}
+
+function cleanupDownload() {
+  if (activeTCP !== undefined) {
+    activeTCP.close();
+    activeTCP = undefined;
+  }
+  downloadLine = undefined;
+  receivedLength = 0;
+  entries = "";
+  totalReceived = 0;
+  downloadStartTime = 0;
 }
 
 function sortLeaderboard(

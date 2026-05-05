@@ -20,3 +20,5 @@ customStages/**/*.xml
 
 # XML files created by the animation editor
 mod/resources/**/*.anm2
+
+mod/metadata.xml

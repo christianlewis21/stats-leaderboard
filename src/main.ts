@@ -485,6 +485,7 @@ function findSteamID() {
   Isaac.DebugString(
     `Found steamID: ${user.id}, steamName: ${user.name}, and friendsList: ${friendsList}`,
   );
+  mod.saveDataManagerSave();
 }
 
 function parseVDF(path: string | undefined) {

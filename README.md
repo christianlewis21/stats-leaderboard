@@ -1,14 +1,15 @@
 # Stats Leaderboard
 
-Stats Leaderboard is a mod for [_The Binding of Isaac: Repentance_](https://store.steampowered.com/app/1426300/The_Binding_of_Isaac_Repentance/), written in [TypeScript](https://www.typescriptlang.org/) using the [IsaacScript](https://isaacscript.github.io/) framework.
+Stats Leaderboard is a mod for [_The Binding of Isaac: Repentance+_](https://store.steampowered.com/app/3353470/The_Binding_of_Isaac_Repentance/), written in [TypeScript](https://www.typescriptlang.org/) using the [IsaacScript](https://isaacscript.github.io/) framework.
 
 ## How To Play
 
-For normal people, you can play the mod by subscribing to it on [the Steam Workshop](https://steamcommunity.com/app/250900/workshop/). (Subscribing to the mod will automatically download and install it once you launch the game.)
+This mod is downloaded on the [ Steam Workshop ](https://steamcommunity.com/sharedfiles/filedetails/?id=3720196936).
+All instructions to use the mod are located on this page.
 
 ## How To Compile
 
-If you are a developer, or if the mod is not yet uploaded to the Steam Workshop, you can play the mod by compiling the TypeScript code into a "main.lua" file. Perform the following steps:
+If you are a developer you can play the mod by compiling the TypeScript code into a "main.lua" file. Perform the following steps:
 
 - Download and install [Node.js](https://nodejs.org/en/download/) (Windows Installer .msi, 64-bit).
 - Download and install [Git](https://git-scm.com/download/win) (64-bit Git for Windows setup).

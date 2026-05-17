@@ -31,7 +31,7 @@ Controller: SHARE (the tiny little button on the left) to open/close leaderboard
 
 This mod is made with [url=https://isaacscript.github.io/]Isaacscript[/url]
   </description>
-    <version>1.2</version>
+    <version>1.3</version>
     <visibility>Public</visibility>
     <tag id="Lua"/>
     <tag id="Tweaks"/>

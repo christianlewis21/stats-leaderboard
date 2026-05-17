@@ -63,7 +63,7 @@ let totalPages = 0;
 
 // Font
 const font = Font("font/teammeatex/teammeatex12.fnt");
-const title = Font("font/teammeatfont16bold.fnt");
+const title = Font("font/teammeatex/teammeatex16.fnt");
 // End Font
 
 // Socket
@@ -365,7 +365,6 @@ function displayEntries() {
       break;
     }
   }
-  Isaac.DebugString(`Font loaded? ${font[1]}`);
   totalPages = Math.ceil(leaderboardEntries.length / PAGE_SIZE);
 
   const defaultColor = KColor(0.216, 0.168, 0.176, 1);

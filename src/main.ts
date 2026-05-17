@@ -61,12 +61,10 @@ const PAGE_SIZE = 10;
 let totalPages = 0;
 // End Leaderboard State
 
-// Fonts
-const font = Font();
-font.Load("font/teammeatfont12.fnt");
-const title = Font();
-title.Load("font/teammeatfont16.fnt");
-// End Fonts
+// Font
+const font = Font("font/teammeatex/teammeatex12.fnt");
+const title = Font("font/teammeatfont16bold.fnt");
+// End Font
 
 // Socket
 let socket: Socket | null = null;
@@ -170,7 +168,6 @@ function render() {
   } else {
     resetDefault();
   }
-
   const isAnyActionTriggered = (action: ButtonAction): boolean =>
     allIndices.some((idx) => Input.IsActionTriggered(action, idx));
   if (
@@ -368,6 +365,7 @@ function displayEntries() {
       break;
     }
   }
+  Isaac.DebugString(`Font loaded? ${font[1]}`);
   totalPages = Math.ceil(leaderboardEntries.length / PAGE_SIZE);
 
   const defaultColor = KColor(0.216, 0.168, 0.176, 1);
@@ -381,7 +379,7 @@ function displayEntries() {
 
   const lines = splitTitle(leaderboardName);
   for (const [i, line] of lines.entries()) {
-    title.DrawString(line, titleX, titleY + i * 10, defaultColor, 169, true);
+    title[0].DrawString(line, titleX, titleY + i * 10, defaultColor, 169, true);
   }
 
   const startIndex = currentPage * PAGE_SIZE;
@@ -407,11 +405,11 @@ function displayEntries() {
     const entryColor = steamID === entry["steam_id"] ? userColor : defaultColor;
 
     const nameText = `${rank}. ${entry["steam_name"] as string}`;
-    font.DrawString(nameText, entryX, yPos, entryColor, 0, false);
+    font[0].DrawString(nameText, entryX, yPos, entryColor, 0, false);
 
     const statValue = tostring(entry[statKey]);
-    const statWidth = font.GetStringWidth(statValue);
-    font.DrawString(
+    const statWidth = font[0].GetStringWidth(statValue);
+    font[0].DrawString(
       statValue,
       statColumnX - statWidth,
       yPos,
